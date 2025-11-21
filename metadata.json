@@ -1,5 +1,5 @@
 {
-  "name": "AI Travel Planner",
+  "name": "Awesome Travel Planner",
   "description": "A comprehensive travel itinerary planner that allows users to generate, customize, manage budgets, and save trip plans. Features include drag-and-drop itinerary editing, budget tracking with currency conversion, contact management, and PDF export.",
   "requestFramePermissions": []
 }

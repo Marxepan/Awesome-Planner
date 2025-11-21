@@ -323,10 +323,10 @@ function App() {
                 <main className="max-w-7xl mx-auto">
                     <header className="text-center mb-10 printable-hide">
                         <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
-                            Awesome <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">Travel Planner</span>
+                            <span className="text-green-500">Awesome</span> <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">Travel Planner</span>
                         </h1>
                         <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-600 dark:text-slate-400">
-                            Use our AI to generate a personalized travel plan, or start with our curated Tokyo template to get going instantly.
+                            Plan your perfect trip instantly. Start with our curated Tokyo template to get going.
                         </p>
                     </header>
                     <div id='generation-form' className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 mb-10 printable-hide">

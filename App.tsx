@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { polishedTemplate, defaultBudgetItems, defaultContacts } from './components/constants';
-import type { Activity, BudgetItem, Contact, Currency, Day, ExchangeRates, Itinerary, SavedTrip } from './types';
+import type { Activity, BudgetItem, Contact, Currency, Day, ExchangeRates, Itinerary, SavedTrip, TripDocument } from './types';
 import { GlobeIcon, CalendarIcon, SparklesIcon } from './components/icons';
 import ThemeToggle from './components/ThemeToggle';
 import ItinerarySection from './components/ItinerarySection';
 import BudgetPlanner from './components/BudgetPlanner';
 import ContactsManager from './components/ContactsManager';
 import TripHistoryManager from './components/TripHistoryManager';
+import DocumentsManager from './components/DocumentsManager';
 
 // Declare third-party libraries on the window object
 declare global {
@@ -43,6 +44,7 @@ function App() {
     const [itinerary, setItinerary] = useState<Itinerary | null>(() => loadState('travelItinerary', null));
     const [budgetItems, setBudgetItems] = useState<BudgetItem[]>(() => loadState('travelBudgetItems', []));
     const [contacts, setContacts] = useState<Contact[]>(() => loadState('travelContacts', []));
+    const [documents, setDocuments] = useState<TripDocument[]>(() => loadState('travelDocuments', []));
     const [currency, setCurrency] = useState<Currency>(() => loadState('travelDisplayCurrency', 'USD'));
     const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(() => loadState('travelExchangeRates', {
         USD: 1, EUR: 0.92, PLN: 4.05, CHF: 0.91
@@ -82,10 +84,12 @@ function App() {
                 localStorage.setItem('travelItinerary', JSON.stringify(itinerary));
                 localStorage.setItem('travelBudgetItems', JSON.stringify(budgetItems));
                 localStorage.setItem('travelContacts', JSON.stringify(contacts));
+                localStorage.setItem('travelDocuments', JSON.stringify(documents));
             } else {
                 localStorage.removeItem('travelItinerary');
                 localStorage.removeItem('travelBudgetItems');
                 localStorage.removeItem('travelContacts');
+                localStorage.removeItem('travelDocuments');
             }
             localStorage.setItem('travelDisplayCurrency', JSON.stringify(currency));
             localStorage.setItem('travelExchangeRates', JSON.stringify(exchangeRates));
@@ -93,7 +97,7 @@ function App() {
         } catch (e) {
             console.error("Failed to save state to localStorage", e);
         }
-    }, [itinerary, budgetItems, contacts, currency, exchangeRates, savedTrips]);
+    }, [itinerary, budgetItems, contacts, documents, currency, exchangeRates, savedTrips]);
 
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,6 +111,7 @@ function App() {
         setItinerary(null);
         setBudgetItems([]);
         setContacts([]);
+        setDocuments([]);
 
         setTimeout(() => {
             try {
@@ -130,10 +135,11 @@ function App() {
     };
     
     const handleClearItinerary = () => {
-        if (window.confirm("Are you sure you want to delete this entire itinerary?")) {
+        if (window.confirm("Are you sure you want to delete this entire itinerary and all evidence?")) {
             setItinerary(null);
             setBudgetItems([]);
             setContacts([]);
+            setDocuments([]);
         }
     };
     
@@ -148,7 +154,7 @@ function App() {
                 id: Date.now(),
                 name: tripName,
                 formState: { destination, startDate, endDate, interests },
-                data: { itinerary, budgetItems, contacts, currency, exchangeRates }
+                data: { itinerary, budgetItems, contacts, documents, currency, exchangeRates }
             };
             setSavedTrips(prev => [...prev, newTrip]);
             alert(`Trip '${tripName}' has been saved.`);
@@ -162,6 +168,7 @@ function App() {
                 setItinerary(tripToLoad.data.itinerary);
                 setBudgetItems(tripToLoad.data.budgetItems);
                 setContacts(tripToLoad.data.contacts);
+                setDocuments(tripToLoad.data.documents || []); // Handle older saves without docs
                 setCurrency(tripToLoad.data.currency);
                 setExchangeRates(tripToLoad.data.exchangeRates);
                 setDestination(tripToLoad.formState.destination);
@@ -202,6 +209,16 @@ function App() {
         setContacts(prev => prev.filter(c => c.id !== id));
     };
 
+    const handleAddDocument = (doc: TripDocument) => {
+        setDocuments(prev => [...prev, doc]);
+    };
+
+    const handleDeleteDocument = (id: string) => {
+        if(window.confirm("Destroy this document? This cannot be undone.")) {
+            setDocuments(prev => prev.filter(d => d.id !== id));
+        }
+    };
+
     const StickyHeader = () => (
         <div className={`sticky top-0 z-40 py-3 transition-all duration-300 printable-hide ${isScrolled && itinerary ? 'bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg shadow-md border-b border-slate-200 dark:border-slate-800' : 'bg-transparent'}`}>
             <div className='max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8'>
@@ -225,7 +242,6 @@ function App() {
 
     const generatePdf = async (currentItinerary: Itinerary) => {
         // This function needs access to the current itinerary state, so it's defined here.
-        // It's a bit long, but keeping it inside App avoids prop-drilling setCollapsedDays
         if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
             setError("PDF generation libraries could not be loaded. Please refresh the page and try again.");
             return;
@@ -386,7 +402,10 @@ function App() {
                     {itinerary && (
                         <div className='mt-12 grid grid-cols-1 xl:grid-cols-2 gap-10 animate-fade-in printable-hide'>
                             <BudgetPlanner items={budgetItems} onAddItem={handleAddBudgetItem} onDeleteItem={handleDeleteBudgetItem} currency={currency} onCurrencyChange={setCurrency} exchangeRates={exchangeRates} onRatesChange={setExchangeRates} />
-                            <ContactsManager contacts={contacts} onAddContact={handleAddContact} onDeleteContact={handleDeleteContact} />
+                            <div className="space-y-10">
+                                <ContactsManager contacts={contacts} onAddContact={handleAddContact} onDeleteContact={handleDeleteContact} />
+                                <DocumentsManager documents={documents} onAddDocument={handleAddDocument} onDeleteDocument={handleDeleteDocument} />
+                            </div>
                         </div>
                     )}
 

@@ -33,6 +33,16 @@ export interface Contact {
     notes: string;
 }
 
+export interface TripDocument {
+    id: string;
+    name: string;
+    type: string; // MIME type
+    size: number;
+    data: string; // Base64 string
+    category: string; // Acts as folder name
+    createdAt: number;
+}
+
 export interface ExchangeRates {
     USD: number;
     EUR: number;
@@ -54,6 +64,7 @@ export interface TripData {
     itinerary: Itinerary;
     budgetItems: BudgetItem[];
     contacts: Contact[];
+    documents: TripDocument[];
     currency: Currency;
     exchangeRates: ExchangeRates;
 }

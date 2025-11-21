@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { Itinerary, Day, Activity } from '../types';
 import { ChevronDownIcon, GripVerticalIcon, TrashIcon, EditIcon, LinkIcon } from './icons';
 import { categoryIcons, getCategoryIcon } from './constants';

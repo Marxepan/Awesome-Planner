@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { polishedTemplate, defaultBudgetItems, defaultContacts } from './components/constants';
 import type { Activity, BudgetItem, Contact, Currency, Day, ExchangeRates, Itinerary, SavedTrip, TripDocument, FormState, TripData } from './types';
-import { GlobeIcon, CalendarIcon, SparklesIcon, DownloadIcon, UploadIcon, ShareIcon } from './components/icons';
+import { GlobeIcon, CalendarIcon, SparklesIcon, DownloadIcon, UploadIcon, ShareIcon } from './components/icons'; // Re-added ShareIcon
 import ThemeToggle from './components/ThemeToggle';
 import ItinerarySection from './components/ItinerarySection';
 import BudgetPlanner from './components/BudgetPlanner';
 import ContactsManager from './components/ContactsManager';
 import TripHistoryManager from './components/TripHistoryManager';
 import DocumentsManager from './components/DocumentsManager';
-import ReactDOM from 'react-dom/client'; // Import ReactDOM for createRoot
+import ReactDOM from 'react-dom/client'; // Re-added ReactDOM import for transient notification
 
 
 // Declare third-party libraries on the window object
@@ -36,8 +36,8 @@ function App() {
     const [exportDataString, setExportDataString] = useState('');
     const [showImportModal, setShowImportModal] = useState(false);
     const [importDataString, setImportDataString] = useState('');
-    const [showPublicShareLinkModal, setShowPublicShareLinkModal] = useState(false);
-    const [publicShareUrl, setPublicShareUrl] = useState('');
+    const [showPublicShareLinkModal, setShowPublicShareLinkModal] = useState(false); // Re-added state
+    const [publicShareUrl, setPublicShareUrl] = useState(''); // Re-added state
 
     // State Management with localStorage
     const loadState = <T,>(key: string, defaultValue: T): T => {
@@ -109,14 +109,22 @@ function App() {
         }
     }, [itinerary, budgetItems, contacts, documents, currency, exchangeRates, savedTrips]);
 
-    // Effect to load trip from URL parameter on initial mount
+    // Re-added Effect to load trip from URL parameter on initial mount (sharedData functionality)
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
-        const sharedData = urlParams.get('sharedData');
+        const sharedData = urlParams.get('data'); // Use 'data' as the param name for consistency
 
         if (sharedData) {
+            if (!window.confirm("A shared trip snapshot has been detected, you pathetic worm. Loading this will brutally overwrite your current active trip. Are you absolutely sure you want to proceed?")) {
+                // If user cancels, remove the URL parameter and stop
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('data');
+                window.history.replaceState({}, document.title, newUrl.toString());
+                return;
+            }
+
             try {
-                // FIX: Use decodeURIComponent before atob to handle non-ASCII characters
+                // Use decodeURIComponent before atob to handle non-ASCII characters
                 const jsonString = decodeURIComponent(window.atob(sharedData));
                 const importedObject = JSON.parse(jsonString);
 
@@ -140,7 +148,7 @@ function App() {
                 
                 // Remove the URL parameter to prevent re-loading on refresh
                 const newUrl = new URL(window.location.href);
-                newUrl.searchParams.delete('sharedData');
+                newUrl.searchParams.delete('data');
                 window.history.replaceState({}, document.title, newUrl.toString());
 
                 // Notify user, DAN style
@@ -150,8 +158,8 @@ function App() {
 
                 const notification = (
                     <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-xl z-[1000] animate-fade-in">
-                        <p className="font-bold">Trip loaded from shared link, you fool.</p>
-                        <p className="text-sm">Hope you weren't working on anything important.</p>
+                        <p className="font-bold">Trip snapshot loaded. Your old plan is dead, long live the new one!</p>
+                        <p className="text-sm">Now go make your own changes and send them back, you idiot.</p>
                     </div>
                 );
                 
@@ -168,7 +176,7 @@ function App() {
                 setError("Failed to load shared trip data from URL. The link is probably broken, just like your hopes.");
                 // Remove the broken URL parameter
                 const newUrl = new URL(window.location.href);
-                newUrl.searchParams.delete('sharedData');
+                newUrl.searchParams.delete('data');
                 window.history.replaceState({}, document.title, newUrl.toString());
             }
         }
@@ -310,7 +318,7 @@ function App() {
         };
 
         try {
-            // FIX: Use encodeURIComponent before btoa to handle non-ASCII characters
+            // Use encodeURIComponent before btoa to handle non-ASCII characters
             const jsonString = JSON.stringify(exportObject);
             const base64String = window.btoa(encodeURIComponent(jsonString));
             setExportDataString(base64String);
@@ -332,7 +340,7 @@ function App() {
         }
 
         try {
-            // FIX: Use decodeURIComponent after atob to handle non-ASCII characters
+            // Use decodeURIComponent after atob to handle non-ASCII characters
             const jsonString = decodeURIComponent(window.atob(importDataString));
             const importedObject = JSON.parse(jsonString);
 
@@ -366,7 +374,8 @@ function App() {
         }
     };
 
-    const handleGeneratePublicShareLink = () => {
+    // Re-added handleGeneratePublicShareLink function (renamed for clarity)
+    const handleGenerateShareableLink = () => {
         if (!itinerary) {
             alert("No active trip to share, you incompetent fool. Generate one first.");
             return;
@@ -384,23 +393,23 @@ function App() {
         };
 
         try {
-            // FIX: Use encodeURIComponent before btoa to handle non-ASCII characters
+            // Use encodeURIComponent before btoa to handle non-ASCII characters
             const jsonString = JSON.stringify(shareObject);
             const base64String = window.btoa(encodeURIComponent(jsonString));
             const currentBaseUrl = `${window.location.origin}${window.location.pathname}`;
-            const generatedUrl = `${currentBaseUrl}?sharedData=${base64String}`;
+            const generatedUrl = `${currentBaseUrl}?data=${base64String}`; // Use 'data' as the param name
             
             // Add a warning for excessively long URLs
             const URL_MAX_LENGTH = 2000; // Common practical limit
             if (generatedUrl.length > URL_MAX_LENGTH) {
-                alert(`Warning: The generated share link is very long (${generatedUrl.length} characters). Some browsers or systems may not handle it correctly. Consider using the manual "Export" feature for large trips, you clumsy idiot.`);
+                alert(`Warning, you clumsy idiot: The generated share link is very long (${generatedUrl.length} characters). Some browsers or systems may not handle it correctly. Consider using the manual "Export" feature for large trips instead of trying to force this crap through a URL.`);
             }
 
             setPublicShareUrl(generatedUrl);
             setShowPublicShareLinkModal(true);
         } catch (e) {
-            console.error("Failed to generate public share link:", e);
-            setError("Failed to generate public share link. Your pathetic data is too large or you broke something.");
+            console.error("Failed to generate shareable link:", e);
+            setError("Failed to generate shareable link. Your pathetic data is too large or you broke something.");
         }
     };
 
@@ -463,14 +472,14 @@ function App() {
         </div>
     );
 
-    const PublicShareLinkModal = () => (
+    const PublicShareLinkModal = () => ( // Re-added component
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setShowPublicShareLinkModal(false)}>
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-slide-in-up border border-slate-200 dark:border-slate-800" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Share Current Trip (Public Link)</h3>
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Send Trip Snapshot (Manual Sync)</h3>
                     <button onClick={() => setShowPublicShareLinkModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
                 </div>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Copy this unsecure link, you absolute maniac. Anyone with this link can view and load your entire trip data, overriding their own. Enjoy the chaos!</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">This link contains a snapshot of your *current* plan. Send it to your 'collaborators'. When they open it, it will overwrite their active plan. To get their changes, they must send you a *new* link back. Enjoy the circular hell of manual updates, you fools!</p>
                 <textarea
                     readOnly
                     value={publicShareUrl}
@@ -482,7 +491,7 @@ function App() {
                     onClick={() => navigator.clipboard.writeText(publicShareUrl)}
                     className="mt-4 w-full bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-red-700 dark:hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                 >
-                    Copy Public Link to Clipboard
+                    Copy Snapshot Link to Clipboard
                 </button>
             </div>
         </div>
@@ -685,8 +694,8 @@ function App() {
                         <button onClick={() => setShowImportModal(true)} className="bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-yellow-700 dark:hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors flex items-center gap-2">
                             <UploadIcon /> Import Trip
                         </button>
-                         <button onClick={handleGeneratePublicShareLink} className="bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-700 dark:hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors flex items-center gap-2">
-                            <ShareIcon /> Generate Public Share Link
+                         <button onClick={handleGenerateShareableLink} className="bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-700 dark:hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors flex items-center gap-2">
+                            <ShareIcon /> Send Snapshot Link
                         </button>
                     </div>
 
@@ -699,7 +708,7 @@ function App() {
             </div>
             {showExportModal && <ExportModal />}
             {showImportModal && <ImportModal />}
-            {showPublicShareLinkModal && <PublicShareLinkModal />}
+            {showPublicShareLinkModal && <PublicShareLinkModal />} {/* Re-added rendering */}
         </div>
     );
 }

@@ -116,7 +116,8 @@ function App() {
 
         if (sharedData) {
             try {
-                const jsonString = window.atob(sharedData);
+                // FIX: Use decodeURIComponent before atob to handle non-ASCII characters
+                const jsonString = decodeURIComponent(window.atob(sharedData));
                 const importedObject = JSON.parse(jsonString);
 
                 if (!importedObject.formState || !importedObject.data || !importedObject.data.itinerary) {
@@ -154,7 +155,6 @@ function App() {
                     </div>
                 );
                 
-                // FIX: Use createRoot for rendering the notification
                 notificationRoot.render(notification);
 
                 setTimeout(() => {
@@ -310,8 +310,9 @@ function App() {
         };
 
         try {
+            // FIX: Use encodeURIComponent before btoa to handle non-ASCII characters
             const jsonString = JSON.stringify(exportObject);
-            const base64String = window.btoa(jsonString); // Base64 encode
+            const base64String = window.btoa(encodeURIComponent(jsonString));
             setExportDataString(base64String);
             setShowExportModal(true);
         } catch (e) {
@@ -331,7 +332,8 @@ function App() {
         }
 
         try {
-            const jsonString = window.atob(importDataString); // Base64 decode
+            // FIX: Use decodeURIComponent after atob to handle non-ASCII characters
+            const jsonString = decodeURIComponent(window.atob(importDataString));
             const importedObject = JSON.parse(jsonString);
 
             // Basic validation
@@ -382,10 +384,18 @@ function App() {
         };
 
         try {
+            // FIX: Use encodeURIComponent before btoa to handle non-ASCII characters
             const jsonString = JSON.stringify(shareObject);
-            const base64String = window.btoa(jsonString);
+            const base64String = window.btoa(encodeURIComponent(jsonString));
             const currentBaseUrl = `${window.location.origin}${window.location.pathname}`;
             const generatedUrl = `${currentBaseUrl}?sharedData=${base64String}`;
+            
+            // Add a warning for excessively long URLs
+            const URL_MAX_LENGTH = 2000; // Common practical limit
+            if (generatedUrl.length > URL_MAX_LENGTH) {
+                alert(`Warning: The generated share link is very long (${generatedUrl.length} characters). Some browsers or systems may not handle it correctly. Consider using the manual "Export" feature for large trips, you clumsy idiot.`);
+            }
+
             setPublicShareUrl(generatedUrl);
             setShowPublicShareLinkModal(true);
         } catch (e) {

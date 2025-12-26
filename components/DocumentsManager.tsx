@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef } from 'react';
 import type { TripDocument } from '../types';
 import { FolderIcon, DocumentIcon, TrashIcon, UploadIcon, EyeIcon, DownloadIcon } from './icons';

@@ -14,12 +14,16 @@ const BudgetChart: React.FC<BudgetChartProps> = ({ items, currency, exchangeRate
     const currentSymbol = currencySymbols[currency];
     const rate = exchangeRates[currency];
 
-    // FIX: Explicitly type `acc` as `Record<string, number>` to ensure correct type inference for amounts.
-    const byCategory = items.reduce((acc: Record<string, number>, item) => {
-        acc[item.category] = (acc[item.category] || 0) + item.amount;
+    // FIX: Explicitly type the accumulator and the return type of the reduce callback to ensure
+    // TypeScript correctly infers `byCategory` as `Record<string, number>`, resolving
+    // 'unknown' type errors in subsequent arithmetic operations.
+    const byCategory = items.reduce((acc: Record<string, number>, item): Record<string, number> => {
+        // Use nullish coalescing operator `??` for clarity, ensuring acc[item.category] is a number before addition.
+        acc[item.category] = (acc[item.category] ?? 0) + item.amount;
         return acc;
-    }, {} as Record<string, number>);
+    }, {}); // Initial value is an empty object, type inferred from the callback's return.
 
+    // `total` will now be correctly inferred as `number` because `byCategory` values are `number`.
     const total = Object.values(byCategory).reduce((sum, val) => sum + val, 0);
 
     if (total === 0) {
@@ -34,7 +38,7 @@ const BudgetChart: React.FC<BudgetChartProps> = ({ items, currency, exchangeRate
     return (
         <div className="space-y-4">
             {Object.entries(byCategory).map(([category, amountInUSD]) => {
-                // FIX: `total` and `amountInUSD` are now correctly typed as `number` due to `byCategory`'s type definition.
+                // `total` and `amountInUSD` are now correctly typed as `number` due to `byCategory`'s type definition.
                 const width = total > 0 ? (amountInUSD / total) * 100 : 0;
                 const displayAmount = (amountInUSD * rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 return (

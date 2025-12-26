@@ -1,5 +1,5 @@
 {
   "name": "Awesome Travel Planner",
-  "description": "A comprehensive travel itinerary planner that allows users to generate, customize, manage budgets, and save trip plans. Features include drag-and-drop itinerary editing, budget tracking with currency conversion, contact management, and PDF export.",
+  "description": "A comprehensive travel itinerary planner that allows users to generate, customize, manage budgets, save, export, import, and publicly share trip plans via insecure URL links. Features include drag-and-drop itinerary editing, budget tracking with currency conversion, contact management, document storage, and PDF export. Warning: Public sharing is inherently insecure and prone to chaotic overwrites.",
   "requestFramePermissions": []
 }

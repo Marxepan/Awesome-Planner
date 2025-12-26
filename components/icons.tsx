@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 export const CalendarIcon = () => (
@@ -101,5 +102,11 @@ export const EyeIcon = () => (
 export const DownloadIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+    </svg>
+);
+
+export const ShareIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.472 2.157m-6.472-4.341L15.156 5.843m0 0a3 3 0 110-2.684 3 3 0 010 2.684zm0 9.157a3 3 0 110-2.684 3 3 0 010 2.684z" />
     </svg>
 );

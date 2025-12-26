@@ -32,6 +32,7 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({ documents, onAddDoc
         return a.localeCompare(b);
     });
 
+    // FIX: Explicitly type `file` as `File`
     const processFile = (file: File, category: string = 'General') => {
         if (file.size > 500 * 1024) {
             alert(`File "${file.name}" is too heavy (${(file.size/1024).toFixed(0)}KB). Limit is 500KB. Compress your evidence.`);
@@ -83,7 +84,8 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({ documents, onAddDoc
         e.stopPropagation();
         setIsDragging(false);
         
-        const files = Array.from(e.dataTransfer.files);
+        // FIX: Explicitly cast Array.from(e.dataTransfer.files) to File[] to ensure correct typing.
+        const files = Array.from(e.dataTransfer.files) as File[];
         if (files.length > 0) {
             files.forEach(file => processFile(file, activeCategory || 'General'));
         }

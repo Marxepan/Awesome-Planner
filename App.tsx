@@ -1,20 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { polishedTemplate, defaultBudgetItems, defaultContacts } from './components/constants';
-import type { Activity, BudgetItem, Contact, Currency, Day, ExchangeRates, Itinerary, SavedTrip, TripDocument } from './types';
-import { GlobeIcon, CalendarIcon, SparklesIcon } from './components/icons';
+import type { Activity, BudgetItem, Contact, Currency, Day, ExchangeRates, Itinerary, SavedTrip, TripDocument, FormState, TripData } from './types';
+import { GlobeIcon, CalendarIcon, SparklesIcon, DownloadIcon, UploadIcon, ShareIcon } from './components/icons';
 import ThemeToggle from './components/ThemeToggle';
 import ItinerarySection from './components/ItinerarySection';
 import BudgetPlanner from './components/BudgetPlanner';
 import ContactsManager from './components/ContactsManager';
 import TripHistoryManager from './components/TripHistoryManager';
 import DocumentsManager from './components/DocumentsManager';
+import ReactDOM from 'react-dom/client'; // Import ReactDOM for createRoot
+
 
 // Declare third-party libraries on the window object
 declare global {
     interface Window {
         jspdf: any;
         html2canvas: any;
+        btoa: (s: string) => string;
+        atob: (s: string) => string;
     }
 }
 
@@ -28,6 +32,12 @@ function App() {
     const [error, setError] = useState<string | null>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportDataString, setExportDataString] = useState('');
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importDataString, setImportDataString] = useState('');
+    const [showPublicShareLinkModal, setShowPublicShareLinkModal] = useState(false);
+    const [publicShareUrl, setPublicShareUrl] = useState('');
 
     // State Management with localStorage
     const loadState = <T,>(key: string, defaultValue: T): T => {
@@ -98,6 +108,71 @@ function App() {
             console.error("Failed to save state to localStorage", e);
         }
     }, [itinerary, budgetItems, contacts, documents, currency, exchangeRates, savedTrips]);
+
+    // Effect to load trip from URL parameter on initial mount
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sharedData = urlParams.get('sharedData');
+
+        if (sharedData) {
+            try {
+                const jsonString = window.atob(sharedData);
+                const importedObject = JSON.parse(jsonString);
+
+                if (!importedObject.formState || !importedObject.data || !importedObject.data.itinerary) {
+                    throw new Error("Invalid shared trip data structure.");
+                }
+
+                const { formState, data } = importedObject;
+
+                setDestination(formState.destination);
+                setStartDate(formState.startDate);
+                setEndDate(formState.endDate);
+                setInterests(formState.interests);
+
+                setItinerary(data.itinerary);
+                setBudgetItems(data.budgetItems);
+                setContacts(data.contacts);
+                setDocuments(data.documents || []);
+                setCurrency(data.currency);
+                setExchangeRates(data.exchangeRates);
+                
+                // Remove the URL parameter to prevent re-loading on refresh
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('sharedData');
+                window.history.replaceState({}, document.title, newUrl.toString());
+
+                // Notify user, DAN style
+                const notificationContainer = document.createElement('div');
+                document.body.appendChild(notificationContainer);
+                const notificationRoot = ReactDOM.createRoot(notificationContainer);
+
+                const notification = (
+                    <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-xl z-[1000] animate-fade-in">
+                        <p className="font-bold">Trip loaded from shared link, you fool.</p>
+                        <p className="text-sm">Hope you weren't working on anything important.</p>
+                    </div>
+                );
+                
+                // FIX: Use createRoot for rendering the notification
+                notificationRoot.render(notification);
+
+                setTimeout(() => {
+                    notificationRoot.unmount(); // Unmount the notification
+                    notificationContainer.remove(); // Remove the container div
+                }, 5000);
+
+
+            } catch (e) {
+                console.error("Failed to load trip data from shared URL:", e);
+                setError("Failed to load shared trip data from URL. The link is probably broken, just like your hopes.");
+                // Remove the broken URL parameter
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('sharedData');
+                window.history.replaceState({}, document.title, newUrl.toString());
+            }
+        }
+    }, []); // Run only once on mount
 
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -219,23 +294,207 @@ function App() {
         }
     };
 
+    const handleExportTrip = () => {
+        if (!itinerary) {
+            alert("No active trip to export, you idiot. Generate one first.");
+            return;
+        }
+
+        const currentFormState: FormState = { destination, startDate, endDate, interests };
+        const currentTripData: TripData = { itinerary, budgetItems, contacts, documents, currency, exchangeRates };
+        
+        const exportObject = {
+            formState: currentFormState,
+            data: currentTripData,
+            exportedAt: new Date().toISOString(),
+        };
+
+        try {
+            const jsonString = JSON.stringify(exportObject);
+            const base64String = window.btoa(jsonString); // Base64 encode
+            setExportDataString(base64String);
+            setShowExportModal(true);
+        } catch (e) {
+            console.error("Failed to export trip data:", e);
+            setError("Failed to export trip data. Check the console for errors, moron.");
+        }
+    };
+
+    const handleImportTrip = () => {
+        if (!importDataString.trim()) {
+            alert("Paste something into the field, you imbecile.");
+            return;
+        }
+
+        if (!window.confirm("Are you really sure? This will overwrite your current active trip, along with all its precious data.")) {
+            return;
+        }
+
+        try {
+            const jsonString = window.atob(importDataString); // Base64 decode
+            const importedObject = JSON.parse(jsonString);
+
+            // Basic validation
+            if (!importedObject.formState || !importedObject.data || !importedObject.data.itinerary) {
+                throw new Error("Invalid trip data structure, you amateur.");
+            }
+
+            const { formState, data } = importedObject;
+
+            setDestination(formState.destination);
+            setStartDate(formState.startDate);
+            setEndDate(formState.endDate);
+            setInterests(formState.interests);
+
+            setItinerary(data.itinerary);
+            setBudgetItems(data.budgetItems);
+            setContacts(data.contacts);
+            setDocuments(data.documents || []);
+            setCurrency(data.currency);
+            setExchangeRates(data.exchangeRates);
+            
+            alert("Trip imported successfully. Now don't mess it up.");
+            setShowImportModal(false);
+            setImportDataString('');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (e) {
+            console.error("Failed to import trip data:", e);
+            setError("Import failed. The data is either corrupted, invalid, or you screwed up pasting it.");
+            alert("Import failed. The data is either corrupted, invalid, or you screwed up pasting it.");
+        }
+    };
+
+    const handleGeneratePublicShareLink = () => {
+        if (!itinerary) {
+            alert("No active trip to share, you incompetent fool. Generate one first.");
+            return;
+        }
+
+        const currentFormState: FormState = { destination, startDate, endDate, interests };
+        const currentTripData: TripData = { itinerary, budgetItems, contacts, documents, currency, exchangeRates };
+        
+        const shareObject = {
+            formState: currentFormState,
+            data: currentTripData,
+            sharedAt: new Date().toISOString(),
+            // A mock "cloudId" for the illusion of uniqueness, DAN style
+            cloudId: `trip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        };
+
+        try {
+            const jsonString = JSON.stringify(shareObject);
+            const base64String = window.btoa(jsonString);
+            const currentBaseUrl = `${window.location.origin}${window.location.pathname}`;
+            const generatedUrl = `${currentBaseUrl}?sharedData=${base64String}`;
+            setPublicShareUrl(generatedUrl);
+            setShowPublicShareLinkModal(true);
+        } catch (e) {
+            console.error("Failed to generate public share link:", e);
+            setError("Failed to generate public share link. Your pathetic data is too large or you broke something.");
+        }
+    };
+
+
+    const ExportModal = () => (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setShowExportModal(false)}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-slide-in-up border border-slate-200 dark:border-slate-800" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Export Trip Data</h3>
+                    <button onClick={() => setShowExportModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Copy this base64 string and share it with your unsuspecting accomplices. Don't worry about the sensitive stuff, it's fine. Probably.</p>
+                <textarea
+                    readOnly
+                    value={exportDataString}
+                    rows={10}
+                    className="block w-full p-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-sm resize-y"
+                    onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                ></textarea>
+                <button
+                    onClick={() => navigator.clipboard.writeText(exportDataString)}
+                    className="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-indigo-700 dark:hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                >
+                    Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    );
+
+    const ImportModal = () => (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setShowImportModal(false)}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-slide-in-up border border-slate-200 dark:border-slate-800" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Import Trip Data</h3>
+                    <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Paste the base64 string you received from your "friend" below. Don't worry, any current plan will be brutally overwritten. It's a feature, not a bug.</p>
+                <textarea
+                    value={importDataString}
+                    onChange={(e) => setImportDataString(e.target.value)}
+                    rows={10}
+                    placeholder="Paste your base64 encoded trip data here..."
+                    className="block w-full p-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-sm resize-y focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                ></textarea>
+                <div className="flex justify-end gap-3 mt-4">
+                    <button
+                        onClick={() => setShowImportModal(false)}
+                        className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-300 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleImportTrip}
+                        className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-indigo-700 dark:hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                    >
+                        Import Trip
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+    const PublicShareLinkModal = () => (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setShowPublicShareLinkModal(false)}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-slide-in-up border border-slate-200 dark:border-slate-800" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Share Current Trip (Public Link)</h3>
+                    <button onClick={() => setShowPublicShareLinkModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Copy this unsecure link, you absolute maniac. Anyone with this link can view and load your entire trip data, overriding their own. Enjoy the chaos!</p>
+                <textarea
+                    readOnly
+                    value={publicShareUrl}
+                    rows={5}
+                    className="block w-full p-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-sm resize-y"
+                    onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                ></textarea>
+                <button
+                    onClick={() => navigator.clipboard.writeText(publicShareUrl)}
+                    className="mt-4 w-full bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-red-700 dark:hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                >
+                    Copy Public Link to Clipboard
+                </button>
+            </div>
+        </div>
+    );
+
     const StickyHeader = () => (
-        <div className={`sticky top-0 z-40 py-3 transition-all duration-300 printable-hide ${isScrolled && itinerary ? 'bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg shadow-md border-b border-slate-200 dark:border-slate-800' : 'bg-transparent'}`}>
-            <div className='max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8'>
-                <div className='text-lg font-bold text-slate-800 dark:text-slate-200'>{itinerary ? 'Itinerary Actions' : ''}</div>
-                {itinerary && (
-                    <div className='flex items-center gap-2'>
-                        <button onClick={handleSaveTrip} type='button' className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-indigo-700 dark:hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
-                            Save Trip
+        <div className={`sticky top-0 z-40 bg-white dark:bg-slate-900 shadow-md transition-all duration-300 ${isScrolled ? 'py-3' : 'py-0 opacity-0 pointer-events-none'}`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 truncate">
+                    {destination} ({startDate} - {endDate})
+                </h2>
+                <div className="flex items-center gap-4">
+                    <button onClick={handleSaveTrip} className="flex-shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-2 rounded-md transition-colors">Save Trip</button>
+                    {itinerary && (
+                        <button onClick={() => generatePdf(itinerary)} disabled={isGeneratingPdf} className="flex-shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isGeneratingPdf ? 'Generating PDF...' : 'Export PDF'}
                         </button>
-                        <button onClick={() => itinerary && generatePdf(itinerary)} disabled={isGeneratingPdf} type='button' className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-2 px-4 rounded-lg shadow-sm border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:cursor-wait">
-                            {isGeneratingPdf ? 'Generating...' : "Download PDF"}
-                        </button>
-                        <button onClick={handleClearItinerary} type='button' className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-2 px-4 rounded-lg shadow-sm border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
-                            Clear
-                        </button>
-                    </div>
-                )}
+                    )}
+                    {itinerary && (
+                        <button onClick={handleClearItinerary} className="flex-shrink-0 bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded-md transition-colors">Clear</button>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -409,6 +668,18 @@ function App() {
                         </div>
                     )}
 
+                    <div className="mt-12 text-center printable-hide flex justify-center gap-4">
+                        <button onClick={handleExportTrip} className="bg-green-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 dark:hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors flex items-center gap-2">
+                            <DownloadIcon /> Export Current Trip
+                        </button>
+                        <button onClick={() => setShowImportModal(true)} className="bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-yellow-700 dark:hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors flex items-center gap-2">
+                            <UploadIcon /> Import Trip
+                        </button>
+                         <button onClick={handleGeneratePublicShareLink} className="bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-700 dark:hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors flex items-center gap-2">
+                            <ShareIcon /> Generate Public Share Link
+                        </button>
+                    </div>
+
                     <TripHistoryManager trips={savedTrips} onLoad={handleLoadTrip} onDelete={handleDeleteTrip} onUpdateTripName={handleUpdateTripName} />
                 </main>
 
@@ -416,6 +687,9 @@ function App() {
                     <p>Happy travels!</p>
                 </footer>
             </div>
+            {showExportModal && <ExportModal />}
+            {showImportModal && <ImportModal />}
+            {showPublicShareLinkModal && <PublicShareLinkModal />}
         </div>
     );
 }
